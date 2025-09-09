@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="Visual Instruction Tuning">
+  <meta name="keywords" content="multimodal chatbot">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mini-o3</title>
+
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+  <link rel="stylesheet" href="./static/css/index.css">
+  <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/954/954591.png">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/js/all.min.js"></script>
+  <script type="module" src="https://gradio.s3-us-west-2.amazonaws.com/4.16.0/gradio.js"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <!-- 从 CDN 引入 MathJax v3 -->
+  <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+</head>
+
+<style>
+  .expandable-card .card-text-container {
+    max-height: 200px;
+    overflow-y: hidden;
+    position: relative;
+  }
+
+  .expandable-card.expanded .card-text-container {
+    max-height: none;
+  }
+
+  .expand-btn {
+    position: relative;
+    display: none;
+    background-color: rgba(255, 255, 255, 0.8);
+    /* margin-top: -20px; */
+    /* justify-content: center; */
+    color: #510c75;
+    border-color: transparent;
+  }
+
+  .expand-btn:hover {
+    background-color: rgba(200, 200, 200, 0.8);
+    text-decoration: none;
+    border-color: transparent;
+    color: #510c75;
+  }
+
+  .expand-btn:focus {
+    outline: none;
+    text-decoration: none;
+  }
+
+  .expandable-card:not(.expanded) .card-text-container:after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 90px;
+    background: linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 1));
+  }
+
+  .expandable-card:not(.expanded) .expand-btn {
+    margin-top: -40px;
+  }
+
+  .card-body {
+    padding-bottom: 5px;
+  }
+
+  .vertical-flex-layout {
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .figure-img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .adjustable-font-size {
+    font-size: calc(0.5rem + 2vw);
+  }
+
+  .chat-history {
+    flex-grow: 1;
+    overflow-y: auto;
+    /* overflow-x: hidden; */
+    padding: 5px;
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 10px;
+  }
+
+  #gradio pre {
+    background-color: transparent;
+  }
+</style>
+
+<body>
+
+
+  <section class="hero">
+    <div class="hero-body">
+      <div class="container is-max-desktop">
+        <div class="columns is-centered">
+          <div class="column has-text-centered">
+            <h1 class="title is-1 publication-title">Mini-o3: Scaling Up Reasoning Patterns and Interaction Turns for Visual Search</h1>
+            <div class="is-size-5 publication-authors">
+              <span class="author-block">
+                <a href="https://x-lai.github.io/" style="color:#f68946;font-weight:normal;">Xin Lai<sup>*</sup></a>,
+              </span>
+              <span class="author-block">
+                <a href="https://scholar.google.com/citations?hl=zh-CN&user=zQ0P3JAAAAAJ" style="color:#008AD7;font-weight:normal;">Junyi Li<sup>*</sup></a>,
+              </span>
+              <span class="author-block">
+                <a href="" style="color:#F2A900;font-weight:normal;">Wei Li</a>,
+              </span>
+              <span class="author-block">
+                <a href="" style="color:#f68946;font-weight:normal;">Tao Liu</a>,
+              </span>
+              <span class="author-block">
+                <a href="" style="color:#f68946;font-weight:normal;">Tianjian Li</a>,
+              </span>
+              <span class="author-block">
+                <a href="https://hszhao.github.io/" style="color:#f68946;font-weight:normal;">Hengshuang Zhao</a>
+              </span>
+            </div>
+
+            <div class="is-size-5 publication-authors">
+              <span class="author-block"><b style="color:#f68946; font-weight:normal">&#x25B6 </b> The University of
+                Hong Kong</b></span>
+            </div>
+
+            <div class="is-size-6 publication-authors">
+              <span class="author-block"><sup>*</sup>Equal Contribution</span>
+            </div>
+            <div class="column has-text-centered">
+              <div class="publication-links">
+                <span class="link-block">
+                  <a href="https://arxiv.org/abs/" target="_blank"
+                    class="external-link button is-normal is-rounded is-dark">
+                    <span class="icon">
+                      <i class="ai ai-arxiv"></i>
+                    </span>
+                    <span>arXiv (Coming Soon)</span>
+                  </a>
+                </span>
+                <span class="link-block">
+                  <a href="https://github.com/" target="_blank"
+                    class="external-link button is-normal is-rounded is-dark">
+                    <span class="icon">
+                      <i class="fab fa-github"></i>
+                    </span>
+                    <span>Code</span>
+                  </a>
+                </span>
+                <span class="link-block">
+                  <a href="https://huggingface.co/datasets/" target="_blank"
+                    class="external-link button is-normal is-rounded is-dark">
+                    <span class="icon">
+                      <i class="fas fa-database"></i>
+                    </span>
+                    <span>Dataset</span>
+                  </a>
+                </span>
+                <span class="link-block">
+                  <a href="https://huggingface.co" target="_blank"
+                    class="external-link button is-normal is-rounded is-dark">
+                    <span class="icon">
+                      <i class="fas fa-share-square"></i>
+                    </span>
+                    <span>Model</span>
+                  </a>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="hero teaser">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <h4 class="subtitle has-text-centered">
+          Mini-o3 is an open-source model that delivers strong thinking-with-images capability, generating multi-turn agentic trajectories like OpenAI o3, with the interaction turns <span style="color: #ff3860">scaling up to tens of rounds</span>. 
+          Full training recipe is open-source.
+        </h4>
+        <div style="text-align: center;">
+          <img id="teaser" width="80%" src="images/teaser.png">     
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <section class="section"  style="background-color:#efeff081">
+    <div class="container is-max-desktop">
+      <!-- Abstract. -->
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-six-fifths">
+          <h2 class="title is-3">Abstract</h2>
+          <div class="content has-text-justified">
+            <p>
+              Recent advances in large multimodal models have leveraged image-based tools with reinforcement learning to tackle visual problems. However, existing open-source approaches often exhibit monotonous reasoning patterns and allow only a limited number of interaction turns, making them inadequate for difficult tasks that require trial-and-error exploration. In this work, we address this limitation by <b>scaling up tool-based interactions</b> and introduce <b>Mini-o3</b>, a system that executes deep, multi-turn reasoning—spanning tens of steps—and achieves state-of-the-art performance on challenging visual search tasks. Our full recipe for reproducing OpenAI o3–style behaviors is presented.
+              <ol type="1">
+                <li><b>Challenging Dataset</b>. <span style="font-size: 95%;">We construct the <span style="color: #ff3860">Visual Probe Dataset</span>, a collection of thousands of challenging visual search problems designed for exploratory reasoning.</span></li>
+                <li><b>Diverse Multi-turn Trajectories for Cold-start</b>. <span style="font-size: 95%;">We develop an iterative data collection pipeline to obtain cold-start trajectories that exhibit <span style="color: #ff3860">diverse reasoning patterns, including depth-first search, trial-and-error, and goal maintenance</span>.</li>
+                <li><b>Test-time Turns Scaling</b>. <span style="font-size: 95%;">We propose an <b>over-turn masking</b> strategy that prevents penalization of responses exceeding the maximum turns during reinforcement learning, thereby balancing training-time efficiency with test-time scalability. Despite training with an upper bound of only six interaction turns, our model generates trajectories that naturally <span style="color: #ff3860">scale to tens of turns at inference time, with accuracy improving as the number of turns increases</span>.</li>
+                <li><b>Performance</b>. <span style="font-size: 95%;">Extensive experiments demonstrate that Mini-o3 produces rich reasoning patterns and deep thinking paths, effectively solving challenging visual problems, thereby achieving the <span style="color: #ff3860">state-of-the-art results on a variety of benchmarks</span> (e.g., VisualProbe, V* Bench, HR-Bench, MME-Realworld).</li>
+                <li><b>Open-source</b>. <span style="font-size: 95%;">All code, models, and datasets are available to facilitate reproducibility and further research.</li>
+              </ol>  
+           </p>
+  
+          </div>
+        </div>
+      </div>
+        
+    </div>
+  </section>
+
+<section class="section">
+  <!-- Results. -->
+  <div class="columns is-centered has-text-centered">
+    <div class="column is-six-fifths">
+      <h2 class="title is-3"><img id="painting_icon" width="3%" src="https://cdn-icons-png.flaticon.com/512/5379/5379860.png"> Training Recipe for Mini-o3</h2>
+    </div>
+  </div>
+<div class="container is-max-desktop">
+
+  <div class="columns is-centered">
+    <div class="column is-full-width">
+      <div class="content has-text-justified"> 
+        <p>
+          Training Mini-o3 includes two stages:
+          <ul type="1">
+            <li><b>Stage 1: Cold-start Supervised Fine-tuning</b> <span style="font-size: 95%;"></span> <a href="https://github.com/">[SFT Model]</a>. </li>
+
+            <br>
+            <div style="text-align: center;">
+              <img id="demo" width="70%" src="images/cold_start.png">     
+            </div>
+            <br>
+
+            <div>
+              We initially attempted to train the model with reinforcement learning alone, without cold-start supervised fine-tuning (SFT). However, the model tended to produce concise responses and trajectories with few turns. We attribute this behavior to the base model’s lack of exposure to long-horizon agentic trajectories during pretraining and instruction tuning (here, Qwen2.5-VL-7B-Instruct). To handle complex exploratory tasks, we thus employ cold-start SFT to activate multi-turn tool-use capabilities.
+            </div>
+            <br>
+            <div>
+              The cold-start data collection pipeline is shown in the above figure. To generate high-quality, diverse multi-turn trajectories, we prompt an existing VLM with in-context learning ability using a small set of manually crafted exemplars. The VLM is instructed to imitate the exemplars by iteratively producing a thought and an action at each turn. The loop terminates upon emitting a final answer or reaching a pre-defined turn limit. We retain only trajectories whose final answers are correct. Following this procedure, we collect approximately 6,000 cold-start trajectories from 6 exemplars.
+            </div>
+            <br>
+
+            <li><b>Stage 2: Reinforcement Learning</b> <span style="font-size: 95%;"> <a href="https://github.com/">[RL Model]</a>.
+
+            <ul type="1">
+              <li><b>Lower Down Max Pixels</b>. <span style="font-size: 100%;">The base model’s context length is constrained to 32K tokens. With the default image budget of roughly 12M pixels, the allowable number of interaction turns becomes severely limited by context, which hampers trial-and-error exploration on difficult tasks. To increase the feasible turn count per episode, we reduce the maximum pixels per image to 2M (or lower if necessary). This simple adjustment allows more turns to fit within the same context budget, improving solve rates on long-horizon problems.</span> </li>
+              <br>
+              <li><b>Over-turn Masking</b>. <span style="font-size: 100%;">In the vanilla GRPO setting, each question $q$ is passed to the policy model to generate a group of outputs $\{o_i\}_{i=1}^{G}$. Rewards $r$ are then computed based on the correctness of the responses. Notably, when a response hits the maximum number of turns or exceeds the context length limit, the reward is set to $0$, as no valid answer can be produced in such cases. Subsequently, we compute advantages $A$ by normalizing the rewards and update the policy using the GRPO optimization objective over mini-batches. In our implementation, we do not include KL or entropy regularization. Formally, the optimization objective is given by:
+\begin{equation}
+\begin{split}
+    \mathcal{J}_{GRPO}(\theta) = \mathbb{E}_{[q \sim \mathcal{D}, \{o_i\}_{i=1}^G \sim \pi_{\theta_{old}}(\cdot|q)]} \frac{1}{G}\sum_{i=1}^G \left(\min\left(\frac{\pi_\theta(o_i |q)}{\pi_{\theta_{old}}(o_i |q)} A_i, \text{clip} \left( \frac{\pi_\theta(o_i |q)}{\pi_{\theta_{old}}(o_i |q)}, 1 - \epsilon, 1 + \epsilon \right)  A_i \right) \right)
+\end{split}
+\label{eq:GRPO}
+\end{equation}
+\begin{equation}
+\begin{split}
+    A_i = \frac{r_i - mean(\{r_1,r_2,...,r_G\})}{std(\{r_1, r_2, ...,r_G\})}.
+\end{split}
+\label{eq:advantage}
+\end{equation}
+
+<div>
+However, we observe that overlength responses --- those that hit the maximum number of turns or exceed the context length --- are assigned zero reward, which translates into negative advantages after normalization. In effect, such responses are penalized and discouraged throughout training.
+</div>
+
+<br>
+<div style="text-align: center;">
+  <img id="demo" width="90%" src="images/turn_dist.png">     
+</div>
+<br>
+
+<div>
+This design has two drawbacks. First, the correctness of overlength responses is inherently unknown; blunt penalization thus injects label noise into the return signal and can destabilize training. Second, for efficiency, the turn limit during training must remain modest (typically fewer than $10$ turns). As a consequence, overlength responses occur frequently --- exceeding $20\%$ at the beginning of training. In this regime, naïve penalization biases the model to answer prematurely, substantially suppressing the number of interaction turns (see above figure). This makes highly challenging tasks intractable and severely constrains the potential of test-time scaling.
+</div>
+
+<br>
+<div style="text-align: center;">
+  <img id="demo" width="90%" src="images/overlength_mask.png">     
+</div>
+<br>
+
+<div>
+To prevent the model from collapsing into an “answer earlier” strategy, we propose an overlength masking technique whose objective is to avoid penalizing overlength responses. The overall procedure is illustrated in the above figure. Concretely, in addition to the rewards $r$ and advantages $A$ defined as in vanilla GRPO, we introduce a completion mask $M$ that indicates whether a response terminates successfully. We then compute masked advantages $A_i'=M_i \cdot A_i$, so that overlength trajectories (with $M_i=0$) do not contribute negative learning signals. The modified objective, building on the vanilla GRPO, is summarized below, with the changes highlighted in red in the formula.
+</div>
+\begin{equation}
+\begin{split}
+    \mathcal{J}^{\textcolor{red}{overlength}}_{GRPO}(\theta) & = \mathbb{E}_{[q \sim \mathcal{D}, \{o_i\}_{i=1}^G \sim \pi_{\theta_{old}}(\cdot|q)]}  \\
+     \frac{1}{\textcolor{red}{\sum_i^{G}M_i}}\sum_{i=1}^G & \left(\min\left(\frac{\pi_\theta(o_i |q)}{\pi_{\theta_{old}}(o_i |q)} A_i \textcolor{red}{\cdot M_i}, \text{clip} \left( \frac{\pi_\theta(o_i |q)}{\pi_{\theta_{old}}(o_i |q)}, 1 - \epsilon, 1 + \epsilon \right)  A_i\textcolor{red}{\cdot M_i} \right) \right)
+\end{split}
+\label{eq:new_GRPO}
+\end{equation}
+\begin{equation}
+\begin{split}
+    \textcolor{red}{M_i = \mathcal{1}\{|o_i| <= C_{context}\} \cdot \mathcal{1}\{ \text{turn}(o_i) <= C_{turn}\}}.
+\end{split}
+\label{eq:new_advantage}
+\end{equation}
+<div>
+Here, $|o_i|$ and $\text{turn}(o_i)$ denote the token length and the number of turns in response $o_i$, respectively. Moreover, because some responses are incomplete, we normalize the objective by the number of completed generations, $\sum_i^{G}M_i$, rather than by the total number of generations $G$.
+</div>
+<div>
+With this technique, we mask out the loss for overlength responses, thereby removing any implicit penalty. Notably, although we adopt a relatively small upper bound on the number of turns during training, test-time trajectories can extend to dozens of rounds, with accuracy improving monotonically. The proposed overlength masking is thus essential for realizing the benefits of test-time scaling in the number of interaction turns, as illustrated in the above figure.
+</div>
+              </span> </li>
+            </ul>
+        </p>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+
+<section class="section">
+  <div class="columns is-centered has-text-centered">
+    <div class="column is-six-fifths">
+      <h2 class="title is-3"><img id="painting_icon" width="3%" src="https://cdn-icons-png.flaticon.com/512/5886/5886212.png"> Visual Probe Dataset</h2>
+    </div>
+  </div>
+<div class="container is-max-desktop">
+  <div class="columns is-centered">
+    <div class="column is-full-width">
+      <div class="content has-text-justified">
+        <p>
+          Hard instances are essential for encouraging reflective, trial-and-error reasoning during reinforcement learning. To this end, we construct a challenging visual search dataset, the <b>Visual Probe Dataset</b> (VisualProbe). It comprises 4,000 visual question–answer pairs for training and 500 pairs for testing, spanning three difficulty levels: easy, medium, and hard. Compared with prior visual search benchmarks, VisualProbe is characterized by: 
+          <ul type="1">
+            <li><b>Small targets</b></li>
+            <li><b>Numerous distractor objects</b></li>
+            <li><b>High-resolution images</b></li>
+          </ul>
+          An example is illustrated in the below figure. These properties make the tasks substantially more demanding and naturally require iterative exploration and trial-and-error. Please check it out on 
+          <a href="https://huggingface.co/datasets/">[HuggingFace Dataset]</a>.
+<style>
+  table.GeneratedTable {
+    width: 100%;
+    background-color: #ffffff;
+    border-collapse: collapse;
+    border-width: 2px;
+    border-color: #c1c4c5;
+    border-style: solid;
+    color: #000000;
+  }
+  
+  table.GeneratedTable td, table.GeneratedTable th {
+    border-width: 2px;
+    border-color: #9b9d9e;
+    border-style: solid;
+    padding: 3px;
+  }
+  
+  table.GeneratedTable thead {
+    background-color: #6691ee;
+  }
+  </style>
+  
+        </p>
+      </div>
+    </div>
+  </div>
+  <div style="text-align: center;">
+    <img id="demo" width="70%" src="images/visualprobe.png">     
+  </div>
+</section>
+  
+
+<section class="section">
+  <!-- Results. -->
+  <div class="columns is-centered has-text-centered">
+    <div class="column is-six-fifths">
+      <h2 class="title is-3">
+        <img id="painting_icon" width="3%" src="static/images/demo.jpg"> Demo
+      </h2>
+    </div>
+  </div>
+<div class="container is-max-desktop">
+
+  <div class="columns is-centered">
+      <centering>
+        <div style="text-align: center;">
+          <img id="demo" width="70%" src="images/demo.png">     
+        </div>
+      </centering>           
+    </div>
+  </div>
+
+
+</section>
+  
+
+<section class="section">
+  <div class="columns is-centered has-text-centered">
+    <div class="column is-six-fifths">
+      <h2 class="title is-3"><img id="painting_icon" width="3%" src="https://cdn-icons-png.flaticon.com/512/3515/3515174.png"> Performance</h2>
+    </div>
+  </div>
+<div class="container is-max-desktop">
+  <div class="columns is-centered">
+    <div class="column is-full-width">
+      <h2 class="title is-4"><img id="painting_icon" width="4%" src="https://cdn-icons-png.flaticon.com/512/1698/1698535.png"> <span style="font-size: 100%;">Visual Search:</span> Mini-o3 achieves the state-of-the-art results among various benchmarks </h2>
+      <div>
+<style>
+  table.perf-table {
+    border-collapse: collapse;
+    width: 95%;
+    text-align: center;
+    font-family: Arial, sans-serif;
+  }
+  table.perf-table caption {
+    caption-side: top;
+    font-weight: bold;
+    margin-bottom: 6px;
+  }
+  table.perf-table th, table.perf-table td {
+    border: 1px solid #ccc;
+    padding: 6px 8px;
+  }
+  table.perf-table thead th {
+    background: #f6f6f6;
+  }
+  /* 模拟 \rowcolor{Gray} */
+  .row-gray {
+    background: #eeeeee;
+  }
+  /* 左对齐第一列（Model 名称） */
+  .col-model {
+    text-align: left;
+    white-space: nowrap;
+  }
+  /* 分组列之间加粗边界，模拟 LaTeX 的竖线分组 */
+  .group-sep-left {
+    border-left: 2px solid #999 !important;
+  }
+  .group-sep-right {
+    border-right: 2px solid #999 !important;
+  }
+  /* 脚注样式 */
+  .table-notes {
+    font-size: 0.9em;
+    color: #444;
+    margin-top: 6px;
+  }
+</style>
+
+<table class="perf-table">
+  <caption>
+    Performance comparisons among existing models and ours on visual search tasks. 
+    The sizes of all listed models are 7B. We report Avg@32 to reduce variance caused by randomness.
+  </caption>
+  <thead>
+    <tr>
+      <th rowspan="2" class="group-sep-right">Model</th>
+      <th colspan="3" class="group-sep-right">VisualProbe</th>
+      <th rowspan="2" class="group-sep-right">V* Bench</th>
+      <th colspan="2" class="group-sep-right">HR-Bench</th>
+      <th rowspan="2">MME-Realworld</th>
+    </tr>
+    <tr>
+      <th>hard</th>
+      <th>medium</th>
+      <th class="group-sep-right">easy</th>
+      <th>4K</th>
+      <th class="group-sep-right">8K</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="col-model group-sep-right">GPT-4o</td>
+      <td>11.2</td>
+      <td>15.4</td>
+      <td class="group-sep-right">47.5</td>
+      <td class="group-sep-right">65.2</td>
+      <td>62.0</td>
+      <td class="group-sep-right">58.3</td>
+      <td>45.2</td>
+    </tr>
+
+    <tr>
+      <td class="col-model group-sep-right">LLaVA-OneVision</td>
+      <td>13.4</td>
+      <td>12.5</td>
+      <td class="group-sep-right">36.2</td>
+      <td class="group-sep-right">70.9</td>
+      <td>61.2</td>
+      <td class="group-sep-right">54.0</td>
+      <td>57.4</td>
+    </tr>
+    <tr>
+      <td class="col-model group-sep-right">Qwen2.5-VL-Instruct</td>
+      <td>23.9</td>
+      <td>26.0</td>
+      <td class="group-sep-right">39.1</td>
+      <td class="group-sep-right">75.5</td>
+      <td>68.2</td>
+      <td class="group-sep-right">62.7</td>
+      <td>57.3</td>
+    </tr>
+
+    <tr>
+      <td class="col-model group-sep-right">SEAL<sup>†</sup></td>
+      <td>–</td>
+      <td>–</td>
+      <td class="group-sep-right">–</td>
+      <td class="group-sep-right">75.4</td>
+      <td>–</td>
+      <td class="group-sep-right">–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td class="col-model group-sep-right">DyFo<sup>†</sup></td>
+      <td>–</td>
+      <td>–</td>
+      <td class="group-sep-right">–</td>
+      <td class="group-sep-right">81.2</td>
+      <td>–</td>
+      <td class="group-sep-right">–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td class="col-model group-sep-right">Chain-of-Focus<sup>†</sup></td>
+      <td>–</td>
+      <td>–</td>
+      <td class="group-sep-right">–</td>
+      <td class="group-sep-right">88.0</td>
+      <td>–</td>
+      <td class="group-sep-right">–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td class="col-model group-sep-right">Pixel Reasoner<sup>‡</sup></td>
+      <td>28.8</td>
+      <td>29.6</td>
+      <td class="group-sep-right">58.4</td>
+      <td class="group-sep-right">86.3</td>
+      <td>74.0</td>
+      <td class="group-sep-right">66.9</td>
+      <td>64.4</td>
+    </tr>
+    <tr>
+      <td class="col-model group-sep-right">DeepEyes<sup>‡</sup></td>
+      <td>35.1</td>
+      <td>29.8</td>
+      <td class="group-sep-right">60.1</td>
+      <td class="group-sep-right">83.3</td>
+      <td>73.2</td>
+      <td class="group-sep-right">69.5</td>
+      <td>64.0</td>
+    </tr>
+    <tr class="row-gray">
+      <td class="col-model group-sep-right">Mini-o3 (Ours)</td>
+      <td>48.0</td>
+      <td>50.4</td>
+      <td class="group-sep-right">67.0</td>
+      <td class="group-sep-right">88.2</td>
+      <td>77.5</td>
+      <td class="group-sep-right">73.3</td>
+      <td>65.5</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="table-notes">
+  <div>† The models only report the metric of Avg@1 and the model weights are not available.</div>
+  <div>‡ Re-evaluated using its official model and evaluation code to yield the metric of Avg@32.</div>
+</div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="section" id="Acknowledgement">
+    <div class="container is-max-desktop content">
+      <h2 class="title">Acknowledgement</h2>
+      <p>
+        This website is adapted from <a
+        href="https://github.com/nerfies/nerfies.github.io">Nerfies</a> and <a
+        href="https://llava-vl.github.io/">LLaVA</a>, licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">Creative
+        Commons Attribution-ShareAlike 4.0 International License</a>.  We thank the Qwen team for giving us access to their models, and open-source projects, including V* Bench and DeepEyes.
+      </p>
+
+      <p>
+<b>Usage and License Notices</b>: The data, code and checkpoint is intended and licensed for research use only. They are also restricted to uses that follow the license agreement of Qwen and Gemini-2.5-Pro. The dataset is CC BY NC 4.0 (allowing only non-commercial use) and models trained using the dataset should not be used outside of research purposes.
+</p>
+    </div>
+  </section>
+</body>
+
+</html>
