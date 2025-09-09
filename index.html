@@ -185,7 +185,7 @@
                   </a>
                 </span>
                 <span class="link-block">
-                  <a href="https://huggingface.co" target="_blank"
+                  <a href="https://huggingface.co/Mini-o3/" target="_blank"
                     class="external-link button is-normal is-rounded is-dark">
                     <span class="icon">
                       <i class="fas fa-share-square"></i>
@@ -256,7 +256,7 @@
         <p>
           Training Mini-o3 includes two stages:
           <ul type="1">
-            <li><b>Stage 1: Cold-start Supervised Fine-tuning</b> <span style="font-size: 95%;"></span> <a href="https://github.com/">[SFT Model]</a>. </li>
+            <li><b>Stage 1: Cold-start Supervised Fine-tuning</b> <span style="font-size: 95%;"></span> <a href="https://huggingface.co/Mini-o3/Mini-o3-7B-SFT">[SFT Model]</a>. </li>
 
             <br>
             <div style="text-align: center;">
@@ -273,7 +273,7 @@
             </div>
             <br>
 
-            <li><b>Stage 2: Reinforcement Learning</b> <span style="font-size: 95%;"> <a href="https://github.com/">[RL Model]</a>.
+            <li><b>Stage 2: Reinforcement Learning</b> <span style="font-size: 95%;"> <a href="https://huggingface.co/Mini-o3/Mini-o3-7B-v1/">[RL Model]</a>.
 
             <ul type="1">
               <li><b>Lower Down Max Pixels</b>. <span style="font-size: 100%;">The base model’s context length is constrained to 32K tokens. With the default image budget of roughly 12M pixels, the allowable number of interaction turns becomes severely limited by context, which hampers trial-and-error exploration on difficult tasks. To increase the feasible turn count per episode, we reduce the maximum pixels per image to 2M (or lower if necessary). This simple adjustment allows more turns to fit within the same context budget, improving solve rates on long-horizon problems.</span> </li>
